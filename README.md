@@ -3,6 +3,10 @@ Elioplus api wrapper with simple methods
 
 ### [Example Code Link](https://github.com/Monnapse/Elioplus-Api-Wrapper/blob/main/__main__.py)
 ```python
+from elioplus import ElioplusClient
+
+elioplus = ElioplusClient()
+
 results = elioplus.browse(
     region="north-america",
     country="united-states",
