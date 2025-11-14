@@ -1,3 +1,10 @@
+"""
+
+    Elioplus API Wrapper
+    Made by Monnapse
+
+"""
+
 import requests
 from lxml import html
 from .types import CompanyListing, ProcessedHTML
@@ -5,14 +12,13 @@ from .types import CompanyListing, ProcessedHTML
 class ElioplusClient:
     """
         Elioplus API Client
-        Made by Monnapse
 
         This is a simple API wrapper for the Elioplus API.
     """
     def __init__(self):
         self.base_url = "https://elioplus.com"
 
-    def process_listing(self, listing_element, i: int):
+    def process_listing(self, listing_element, i: int) -> CompanyListing:
         name_elem = listing_element.xpath(f".//a[@id='MainContent_RdgResults_aCompanyName_{i}']/text()")
         msp_elem = listing_element.xpath(f".//a[@id='MainContent_RdgResults_aMSPs_{i}']/strong/text()")
         country_elem = listing_element.xpath(".//div[contains(@class, 'country')]/h4/text()")
@@ -70,7 +76,7 @@ class ElioplusClient:
         #else: # Listing name not found / doesnt exist
             #print(f"Listing {i}: Name not found")
 
-    def process_listings(self, listings_elements, limit: int = 10):
+    def process_listings(self, listings_elements, limit: int = 10) -> list[CompanyListing]:
         processed_listings = []
 
         for i in range(len(listings_elements)):
@@ -80,7 +86,7 @@ class ElioplusClient:
             
         return processed_listings
 
-    def process_html(self, content: str):
+    def process_html(self, content: str) -> ProcessedHTML:
         tree = html.fromstring(content)
 
         listings = tree.xpath('//*[@id="MainContent_divMainContent"]/div[1]/div')
@@ -102,11 +108,26 @@ class ElioplusClient:
             listings=listings,
             pages=total_pages
         ) #self.process_listings(listings, limit=limit)
-    
-    def get_page(self, url: str):
-        response = requests.get(url)
+
+    def get_page(self, url: str) -> ProcessedHTML:
+        #print(f"Fetching URL: {url}")
+
+        headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/119.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9",
+        "Referer": "https://elioplus.com/"
+    }
+        response = requests.get(url, headers=headers)
+
+        #print(f"Response status code: {response.status_code}")
 
         if response.status_code != 200:
+            #print("Response HTML:", response.text[:500])  # debug
             raise Exception(f"Failed to retrieve data: {response.status_code}")
         
         return self.process_html(response.content)
@@ -115,13 +136,13 @@ class ElioplusClient:
             self,
             partner: str = "channel-partners", # Default partner type set to channel-partners
             region: str = "north-america", # Default region set to North America
-            country: str | None = None, 
+            country: str | None = None,
             state: str | None = None,
             city: str | None = None,
             vendor: str | None = None,
             limit: int = 10, # Default limit set to 10
             overwrite_url: str | None = None
-        ):
+        ) -> list[CompanyListing]:
         """
             https://elioplus.com/north-america/united-states/channel-partners/yealink?page=1
             https://elioplus.com/north-america/united-states/channel-partners/yealink?page=1
@@ -143,7 +164,12 @@ class ElioplusClient:
 
         processed_html = self.get_page(f"{url}?page=1") # Get the first page
 
-        to_fetch = limit
+        processed_listings = []
+
+        listings_per_page = 101  # Assuming max 101 listings per page
+
+        to_fetch = limit if limit != -1 else processed_html.pages * listings_per_page  # Assuming max 101 listings per page
+        #print(f"Total to fetch: {to_fetch}")
         for page in range(1, processed_html.pages + 1):
             listings = None
             total_pages: int = None
@@ -156,12 +182,17 @@ class ElioplusClient:
                 listings = processed_html.listings
                 total_pages = processed_html.pages
 
-            new_limit = min(to_fetch, 101) if to_fetch != -1 else len(listings)
-            print(f"Processing page {page}/{total_pages} with limit {new_limit}...")
-            processed_listings = self.process_listings(listings, limit=new_limit)
-            to_fetch -= len(processed_listings)
+            new_limit = min(to_fetch, listings_per_page) if to_fetch != -1 else len(listings)
+            #print(f"Processing page {page}/{total_pages} with limit {new_limit}...")
+            new_listings = self.process_listings(listings, limit=new_limit)
+            processed_listings.extend(new_listings)
+            #print(f"Total new listings: {len(new_listings)}")
+            to_fetch = max(0, to_fetch - len(new_listings))
 
-        return []
+            if to_fetch <= 0:
+                break
+
+        return processed_listings
 
     def browse_url(self, url: str, limit: int = 10):
         return self.browse(overwrite_url=url, limit=limit)

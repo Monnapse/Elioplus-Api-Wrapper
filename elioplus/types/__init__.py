@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Any
 
 class CompanyListing(BaseModel):
     name: str
@@ -12,6 +13,9 @@ class CompanyListing(BaseModel):
     overview: str
 
 class ProcessedHTML(BaseModel):
-    tree: any
-    listings: any
+    tree: Any
+    listings: Any
     pages: int
+
+    #class Config:
+    #    arbitrary_types_allowed = True
