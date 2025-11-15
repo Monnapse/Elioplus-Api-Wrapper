@@ -164,7 +164,7 @@ class ElioplusClient:
 
         processed_html = self.get_page(f"{url}?page=1") # Get the first page
 
-        processed_listings = []
+        processed_listings: list[CompanyListing] = []
 
         listings_per_page = 101  # Assuming max 101 listings per page
 
