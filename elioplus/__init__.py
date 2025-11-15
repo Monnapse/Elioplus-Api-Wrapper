@@ -7,7 +7,7 @@
 
 import requests
 from lxml import html
-from .types import CompanyListing, ProcessedHTML
+from .models import CompanyListing, ProcessedHTML
 
 class ElioplusClient:
     """
